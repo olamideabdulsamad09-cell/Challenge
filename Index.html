@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Counter with Step Control</title>
+<style>
+  /* ============ BASE ============ */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #eef2ff;
+    background: radial-gradient(circle at 25% 15%, #2b3a67 0%, #12152a 45%, #0a0c16 100%);
+  }
+
+  /* ============ CARD ============ */
+  .counter-app {
+    width: min(430px, 100%);
+    padding: 26px 26px 22px;
+    text-align: center;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(14px);
+  }
+
+  .title {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #9fb0d8;
+  }
+
+  /* ============ DISPLAY ============ */
+  .display {
+    margin: 10px 0 22px;
+    font-size: clamp(3.6rem, 16vw, 5.2rem);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    background: linear-gradient(180deg, #ffffff, #8fb4ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    user-select: none;
+    transition: filter 0.2s ease;
+  }
+
+  /* Number "pop" animations */
+  .display.pop-up   { animation: popUp   0.28s cubic-bezier(.3,1.6,.5,1); }
+  .display.pop-down { animation: popDown 0.28s cubic-bezier(.3,1.6,.5,1); }
+
+  @keyframes popUp {
+    0%   { transform: scale(1);    filter: brightness(1); }
+    40%  { transform: scale(1.18); filter: brightness(1.6); }
+    100% { transform: scale(1);    filter: brightness(1); }
+  }
+  @keyframes popDown {
+    0%   { transform: scale(1);    filter: brightness(1); }
+    40%  { transform: scale(0.86); filter: brightness(0.7); }
+    100% { transform: scale(1);    filter: brightness(1); }
+  }
+
+  /* ============ BUTTONS (shared) ============ */
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    transition: transform 0.08s ease, background 0.18s ease,
+                border-color 0.18s ease, box-shadow 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  button:active { transform: scale(0.94); }
+
+  button:focus-visible {
+    outline: 2px solid #7aa2ff;
+    outline-offset: 2px;
+  }
+
+  /* ============ MAIN CONTROLS ============ */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .btn-big {
+    height: 62px;
+    font-size: 1.6rem;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+
+  .btn-inc {
+    background: linear-gradient(180deg, #4f8cff, #2b62d9);
+    border-color: rgba(140, 180, 255, 0.55);
+    box-shadow: 0 8px 22px rgba(60, 120, 255, 0.4);
+  }
+  .btn-inc:hover { background: linear-gradient(180deg, #629bff, #3570ea); }
+
+  .btn-dec {
+    background: linear-gradient(180deg, #ff6b81, #d43a52);
+    border-color: rgba(255, 150, 170, 0.5);
+    box-shadow: 0 8px 22px rgba(255, 80, 110, 0.35);
+  }
+  .btn-dec:hover { background: linear-gradient(180deg, #ff8095, #e0455e); }
+
+  .btn-reset {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ STEP CONTROL ============ */
+  .step-section {
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .step-label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #9fb0d8;
+  }
+
+  .step-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .step-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+  }
+
+  /* Number input */
+  .step-input {
+    width: 100px;
+    height: 44px;
+    padding: 0 8px;
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-align: center;
+    color: #eef2ff;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .step-input:focus {
+    outline: none;
+    border-color: #7aa2ff;
+    box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.25);
+  }
+
+  /* Hide spinner arrows (they clash with the design) */
+  .step-input::-webkit-outer-spin-button,
+  .step-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .step-input { -moz-appearance: textfield; appearance: textfield; }
+
+  /* ============ QUICK STEPS ============ */
+  .quick-steps {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 999px;
+  }
+
+  .chip.active {
+    background: rgba(122, 162, 255, 0.28);
+    border-color: #7aa2ff;
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.15);
+  }
+
+  /* ============ HINT ============ */
+  .hint {
+    margin: 18px 0 0;
+    font-size: 0.75rem;
+    color: #7a88ad;
+    line-height: 1.6;
+  }
+
+  kbd {
+    padding: 1px 6px;
+    font-size: 0.72rem;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 5px;
+  }
+</style>
+</head>
+<body>
+
+  <main class="counter-app">
+    <h1 class="title">Counter</h1>
+
+    <!-- Counter value -->
+    <div class="display" id="display" aria-live="polite">0</div>
+
+    <!-- Main buttons -->
+    <div class="controls">
+      <button class="btn-big btn-dec" id="decrement" aria-label="Decrease">−</button>
+      <button class="btn-reset"   id="reset"     aria-label="Reset counter">Reset</button>
+      <button class="btn-big btn-inc" id="increment" aria-label="Increase">+</button>
+    </div>
+
+    <!-- Step control -->
+    <div class="step-section">
+      <span class="step-label">Step size</span>
+
+      <div class="step-row">
+        <button class="step-btn" id="stepDown" aria-label="Decrease step">−</button>
+
+        <input
+          class="step-input"
+          id="stepInput"
+          type="number"
+          value="1"
+          min="1"
+          max="1000"
+          step="1"
+          inputmode="numeric"
+          aria-label="Step value"
+        >
+
+        <button class="step-btn" id="stepUp" aria-label="Increase step">+</button>
+      </div>
+
+      <!-- Presets -->
+      <div class="quick-steps" id="quickSteps">
+        <button class="chip active" data-step="1">1</button>
+        <button class="chip" data-step="5">5</button>
+        <button class="chip" data-step="10">10</button>
+        <button class="chip" data-step="25">25</button>
+        <button class="chip" data-step="100">100</button>
+      </div>
+    </div>
+
+    <p class="hint">
+      <kbd>↑</kbd> / <kbd>↓</kbd> to count &nbsp;·&nbsp; <kbd>R</kbd> to reset
+    </p>
+  </main>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = {
+  count: 0,     // current counter value
+  step: 1,      // how much each click changes the count
+  minStep: 1,
+  maxStep: 1000
+};
+
+/* ============================================================
+   DOM REFERENCES
+   ============================================================ */
+const displayEl   = document.getElementById('display');
+const incBtn      = document.getElementById('increment');
+const decBtn      = document.getElementById('decrement');
+const resetBtn    = document.getElementById('reset');
+const stepInput   = document.getElementById('stepInput');
+const stepUpBtn   = document.getElementById('stepUp');
+const stepDownBtn = document.getElementById('stepDown');
+const quickSteps  = document.getElementById('quickSteps');
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const clampStep = (value) =>
+  Math.min(state.maxStep, Math.max(state.minStep, Math.round(value)));
+
+/** Re-trigger a CSS animation by forcing a reflow. */
+function replayAnimation(el, className) {
+  el.classList.remove('pop-up', 'pop-down');
+  void el.offsetWidth;              // <-- forces reflow
+  if (className) el.classList.add(className);
+}
+
+/** Paint the counter and optionally animate the change. */
+function render(direction) {
+  displayEl.textContent = state.count;
+
+  if (direction === 'up')   replayAnimation(displayEl, 'pop-up');
+  if (direction === 'down') replayAnimation(displayEl, 'pop-down');
+}
+
+/** Highlight the preset chip that matches the current step. */
+function syncChips() {
+  quickSteps.querySelectorAll('.chip').forEach((chip) => {
+    chip.classList.toggle('active', Number(chip.dataset.step) === state.step);
+  });
+}
+
+/** Update the step value everywhere (state + input + chips). */
+function setStep(value) {
+  state.step = clampStep(value);
+  stepInput.value = state.step;
+  syncChips();
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+function increment() {
+  state.count += state.step;
+  render('up');
+}
+
+function decrement() {
+  state.count -= state.step;
+  render('down');
+}
+
+function reset() {
+  state.count = 0;
+  render();
+}
+
+/* ============================================================
+   EVENT LISTENERS — counter
+   ============================================================ */
+incBtn.addEventListener('click', increment);
+decBtn.addEventListener('click', decrement);
+resetBtn.addEventListener('click', reset);
+
+/* ============================================================
+   EVENT LISTENERS — step input
+   ============================================================ */
+stepInput.addEventListener('input', () => {
+  const parsed = parseInt(stepInput.value, 10);
+  // While typing, only commit valid numbers (don't fight the user).
+  if (Number.isFinite(parsed) && parsed > 0) {
+    state.step = clampStep(parsed);
+    syncChips();
+  }
+});
+
+// Normalize the field when the user leaves it (fixes "", "0", "abc", etc.)
+stepInput.addEventListener('blur', () => {
+  setStep(parseInt(stepInput.value, 10) || state.minStep);
+});
+
+stepUpBtn.addEventListener('click', () => setStep(state.step + 1));
+stepDownBtn.addEventListener('click', () => setStep(state.step - 1));
+
+// Preset chips
+quickSteps.addEventListener('click', (event) => {
+  const chip = event.target.closest('.chip');
+  if (!chip) return;
+  setStep(Number(chip.dataset.step));
+});
+
+/* ============================================================
+   EVENT LISTENERS — keyboard shortcuts
+   ============================================================ */
+document.addEventListener('keydown', (event) => {
+  // Don't hijack keys while the user is typing in the step field
+  const typing = event.target === stepInput;
+
+  switch (event.key) {
+    case 'ArrowUp':
+    case 'ArrowRight':
+      event.preventDefault();
+      increment();
+      break;
+
+    case 'ArrowDown':
+    case 'ArrowLeft':
+      event.preventDefault();
+      decrement();
+      break;
+
+    case 'r':
+    case 'R':
+      if (!typing) {
+        event.preventDefault();
+        reset();
+      }
+      break;
+  }
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+setStep(1);
+render();
+</script>
+</body>
+  </html>
